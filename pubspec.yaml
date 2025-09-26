@@ -68,6 +68,7 @@ dependencies:
   flutter_carousel_slider:
   google_maps_flutter_web: ^0.4.0
   google_maps_utils: ^1.5.0+0
+  paymongo_sdk: ^1.7.0
   
 
 dev_dependencies:

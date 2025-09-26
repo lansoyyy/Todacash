@@ -4,12 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:phara/data/distance_calculations.dart';
 import 'package:phara/data/time_calculation.dart';
 import 'package:phara/services/add_booking.dart';
-
+import 'package:paymongo_sdk/paymongo_sdk.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:phara/utils/keys.dart';
 import 'package:phara/utils/colors.dart';
 import 'package:phara/widgets/text_widget.dart';
 import 'package:phara/widgets/trackbooking_bottomsheet_widget.dart';
-
 import 'button_widget.dart';
+
+// Global navigator key for accessing context outside of widget tree
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class BookBottomSheetWidget extends StatefulWidget {
   final String driverId;
@@ -31,6 +36,9 @@ class BookBottomSheetWidget extends StatefulWidget {
 class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
   String userName = '';
   String userProfile = '';
+  String paymentMethod = 'cash'; // Default payment method
+  final box = GetStorage();
+  bool isProcessingPayment = false;
 
   @override
   void initState() {
@@ -51,6 +59,306 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
         });
       }
     });
+  }
+
+  Future<void> processPayment(double amount) async {
+    if (paymentMethod == 'cash') {
+      // For cash payments, proceed directly to booking
+      proceedWithBooking();
+      return;
+    }
+
+    // For GCash payments, use PayMongo SDK
+    setState(() {
+      isProcessingPayment = true;
+    });
+
+    try {
+      final publicSDK = PaymongoClient<PaymongoPublic>(
+          payMongoPublicKey); // Use the API key from keys.dart
+      final data = SourceAttributes(
+        type: 'gcash', // 'gcash' or 'card'
+        amount: amount,
+        currency: 'PHP',
+        redirect: const Redirect(
+          success: "https://example.com/success",
+          failed: "https://example.com/failed",
+        ),
+        billing: PayMongoBilling(
+            email: 'user@example.com',
+            phone: '09630539422',
+            name: userName,
+            address: PayMongoAddress(
+                city: 'Quezon City',
+                country: 'PH',
+                line1: '123 Main St',
+                postalCode: '1100')),
+      );
+
+      final result = await publicSDK.instance.source.create(data);
+      final redirectUrl = result.attributes?.redirect?.checkoutUrl;
+
+      print('PayMongo response: $result');
+      print('Redirect URL: $redirectUrl');
+
+      if (redirectUrl != null && redirectUrl.isNotEmpty) {
+        // Check if URL can be launched
+        final canLaunch = await canLaunchUrl(Uri.parse(redirectUrl));
+        print('Can launch URL: $canLaunch');
+
+        if (canLaunch) {
+          // Launch payment page and handle result
+          final launched = await launchUrl(
+            Uri.parse(redirectUrl),
+            mode: LaunchMode.externalApplication,
+          );
+          print('URL launched: $launched');
+
+          if (launched) {
+            // After payment is completed, proceed with booking
+            proceedWithBooking();
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch payment page')),
+              );
+              setState(() {
+                isProcessingPayment = false;
+              });
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cannot launch payment URL')),
+            );
+            setState(() {
+              isProcessingPayment = false;
+            });
+          }
+        }
+      } else {
+        print('Redirect URL is null or empty');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid payment URL')),
+          );
+          setState(() {
+            isProcessingPayment = false;
+          });
+        }
+      }
+    } catch (e) {
+      String errorMsg = 'Payment error: ';
+      if (e is PaymongoError) {
+        print('PayMongo error: ${e.toString()}');
+        // Extract the actual error message from PaymongoError
+        String paymongoErrorMsg =
+            'Payment service is currently unavailable. Please try again later or use Cash on Delivery.';
+        try {
+          // Try to get more detailed error information from the error object
+          final errorStr = e.toString();
+          if (errorStr.contains('code') && errorStr.contains('detail')) {
+            // Extract error details if available
+            paymongoErrorMsg =
+                'Payment service error. Please check your payment details and try again.';
+          } else if (errorStr.contains('authentication')) {
+            paymongoErrorMsg =
+                'Payment authentication error. Please check your payment details.';
+          } else if (errorStr.contains('network')) {
+            paymongoErrorMsg =
+                'Network error. Please check your internet connection and try again.';
+          }
+        } catch (_) {
+          // Use default error message
+        }
+        errorMsg += paymongoErrorMsg;
+      } else {
+        print('Payment error: ${e.toString()}');
+        errorMsg += e.toString();
+      }
+
+      // Use a mounted check before showing the snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+        setState(() {
+          isProcessingPayment = false;
+        });
+      }
+    }
+  }
+
+  void proceedWithBooking() {
+    // This method will be called after payment is successful or for cash payments
+    // The existing booking logic will be moved here
+    Navigator.pop(context); // Close payment method dialog
+
+    // Show passenger selection dialog
+    int passengers = 1;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: TextBold(
+            text: 'Number of Passengers',
+            fontSize: 18,
+            color: Colors.black,
+          ),
+          content: StatefulBuilder(builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (passengers > 1) {
+                          setState(() {
+                            passengers--;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.remove),
+                    ),
+                    TextBold(
+                      text: '$passengers',
+                      fontSize: 18,
+                      color: Colors.black,
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          passengers++;
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await createBooking(passengers);
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: TextBold(
+                text: 'Continue',
+                fontSize: 18,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> createBooking(int passengers) async {
+    await FirebaseFirestore.instance
+        .collection('Drivers')
+        .doc(widget.driverId)
+        .update({
+      'notif': FieldValue.arrayUnion([
+        {
+          'notif': 'You received a new booking!',
+          'read': false,
+          'date': DateTime.now(),
+        }
+      ]),
+    });
+
+    final String docId = await addBooking(
+        widget.driverId,
+        widget.coordinates['pickupLocation'],
+        widget.locationData['dropoff'],
+        (calculateDistance(
+          widget.coordinates['lat'],
+          widget.coordinates['long'],
+          widget.locationData['destinationlat'],
+          widget.locationData['destinationlong'],
+        )).toStringAsFixed(2),
+        (calculateTravelTime(
+                (calculateDistance(
+                  widget.coordinates['lat'],
+                  widget.coordinates['long'],
+                  widget.locationData['destinationlat'],
+                  widget.locationData['destinationlong'],
+                )),
+                26.8))
+            .toStringAsFixed(2),
+        (((calculateDistance(
+                          widget.coordinates['lat'],
+                          widget.coordinates['long'],
+                          widget.locationData['destinationlat'],
+                          widget.locationData['destinationlong'],
+                        )) *
+                        passengers ==
+                    1
+                ? 30
+                : passengers == 4
+                    ? 25
+                    : passengers == 3
+                        ? 35
+                        : 10))
+            .toStringAsFixed(2),
+        widget.coordinates['lat'],
+        widget.coordinates['long'],
+        widget.locationData['destinationlat'],
+        widget.locationData['destinationlong'],
+        userName,
+        userProfile);
+
+    // Get driver data for tracking screen
+    final driverDoc = await FirebaseFirestore.instance
+        .collection('Drivers')
+        .doc(widget.driverId)
+        .get();
+
+    double rating = driverDoc['stars'] / driverDoc['ratings'].length;
+
+    showModalBottomSheet(
+        isDismissible: false,
+        isScrollControlled: true,
+        context: context,
+        builder: ((context) {
+          return TrackBookingBottomSheetWidget(
+            tripDetails: {
+              'userName': userName,
+              'driverRatings': driverDoc['ratings'].length != 0
+                  ? 'Rating: ${rating.toStringAsFixed(2)} ★'
+                  : 'No ratings',
+              'docId': docId,
+              'driverProfile': driverDoc['profilePicture'],
+              'driverName': driverDoc['name'],
+              'driverId': widget.driverId,
+              'distance': (calculateDistance(
+                widget.coordinates['lat'],
+                widget.coordinates['long'],
+                widget.locationData['destinationlat'],
+                widget.locationData['destinationlong'],
+              )).toStringAsFixed(2),
+              'origin': widget.coordinates['pickupLocation'],
+              'destination': widget.locationData['dropoff'],
+              'fare': (((calculateDistance(
+                            widget.coordinates['lat'],
+                            widget.coordinates['long'],
+                            widget.locationData['destinationlat'],
+                            widget.locationData['destinationlong'],
+                          )) *
+                          12) +
+                      20)
+                  .toStringAsFixed(2),
+              'paymentMethod': paymentMethod,
+            },
+          );
+        }));
   }
 
   final destinationController = TextEditingController();
@@ -252,147 +560,261 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                         color: grey,
                       ),
                       const SizedBox(
+                        height: 10,
+                      ),
+                      TextBold(
+                          text: 'Payment Method', fontSize: 15, color: grey),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                paymentMethod = 'cash';
+                              });
+                            },
+                            child: Container(
+                              width: 120,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'cash'
+                                    ? Colors.green
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: paymentMethod == 'cash'
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                              ),
+                              child: Center(
+                                child: TextBold(
+                                  text: 'Cash',
+                                  fontSize: 16,
+                                  color: paymentMethod == 'cash'
+                                      ? Colors.white
+                                      : Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                paymentMethod = 'gcash';
+                              });
+                            },
+                            child: Container(
+                              width: 120,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: paymentMethod == 'gcash'
+                                    ? Colors.blue
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: paymentMethod == 'gcash'
+                                      ? Colors.blue
+                                      : Colors.grey,
+                                ),
+                              ),
+                              child: Center(
+                                child: TextBold(
+                                  text: 'GCash',
+                                  fontSize: 16,
+                                  color: paymentMethod == 'gcash'
+                                      ? Colors.white
+                                      : Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(
                         height: 20,
                       ),
                       Center(
                         child: ButtonWidget(
                             width: 250,
                             radius: 100,
-                            opacity: 1,
+                            opacity: isProcessingPayment ? 0.5 : 1,
                             color: Colors.green,
-                            label: 'Continue',
-                            onPressed: (() {
-                              showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                        title: const Text(
-                                          'Booking Confirmation',
-                                          style: TextStyle(
-                                              fontFamily: 'QBold',
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        content: const Text(
-                                          'Confirm booking?',
-                                          style:
-                                              TextStyle(fontFamily: 'QRegular'),
-                                        ),
-                                        actions: <Widget>[
-                                          MaterialButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
-                                            child: const Text(
-                                              'Close',
-                                              style: TextStyle(
-                                                  color: Colors.grey,
-                                                  fontFamily: 'QRegular',
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                          MaterialButton(
-                                            onPressed: () async {
-                                              Navigator.pop(context);
+                            label: isProcessingPayment
+                                ? 'Processing...'
+                                : 'Continue',
+                            onPressed: isProcessingPayment
+                                ? () {}
+                                : (() {
+                                    showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                              title: const Text(
+                                                'Booking Confirmation',
+                                                style: TextStyle(
+                                                    fontFamily: 'QBold',
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              content: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Confirm booking?',
+                                                    style: TextStyle(
+                                                        fontFamily: 'QRegular'),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    'Payment Method: ${paymentMethod.toUpperCase()}',
+                                                    style: const TextStyle(
+                                                        fontFamily: 'QRegular',
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                              actions: <Widget>[
+                                                MaterialButton(
+                                                  onPressed: () =>
+                                                      Navigator.of(context)
+                                                          .pop(true),
+                                                  child: const Text(
+                                                    'Close',
+                                                    style: TextStyle(
+                                                        color: Colors.grey,
+                                                        fontFamily: 'QRegular',
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ),
+                                                MaterialButton(
+                                                  onPressed: () async {
+                                                    Navigator.pop(context);
 
-                                              int passengers = 1;
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return AlertDialog(
-                                                    title: TextBold(
-                                                      text:
-                                                          'Number of Passengers',
-                                                      fontSize: 18,
-                                                      color: Colors.black,
-                                                    ),
-                                                    content: StatefulBuilder(
-                                                        builder: (context,
-                                                            setState) {
-                                                      return Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .spaceBetween,
-                                                            children: [
-                                                              IconButton(
-                                                                onPressed: () {
-                                                                  if (passengers >
-                                                                      1) {
-                                                                    setState(
-                                                                      () {
-                                                                        passengers--;
-                                                                      },
-                                                                    );
-                                                                  }
-                                                                },
-                                                                icon:
-                                                                    const Icon(
-                                                                  Icons.remove,
-                                                                ),
-                                                              ),
-                                                              TextBold(
-                                                                text:
-                                                                    '$passengers',
-                                                                fontSize: 18,
-                                                                color: Colors
-                                                                    .black,
-                                                              ),
-                                                              IconButton(
-                                                                onPressed: () {
-                                                                  setState(
-                                                                    () {
-                                                                      passengers++;
-                                                                    },
-                                                                  );
-                                                                },
-                                                                icon:
-                                                                    const Icon(
-                                                                  Icons.add,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ],
-                                                      );
-                                                    }),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () async {
-                                                          await FirebaseFirestore
-                                                              .instance
-                                                              .collection(
-                                                                  'Drivers')
-                                                              .doc(widget
-                                                                  .driverId)
-                                                              .update({
-                                                            'notif': FieldValue
-                                                                .arrayUnion([
-                                                              {
-                                                                'notif':
-                                                                    'You received a new booking!',
-                                                                'read': false,
-                                                                'date': DateTime
-                                                                    .now(),
-                                                              }
-                                                            ]),
-                                                          });
+                                                    // Calculate fare
+                                                    double fare =
+                                                        (((calculateDistance(
+                                                                  widget.coordinates[
+                                                                      'lat'],
+                                                                  widget.coordinates[
+                                                                      'long'],
+                                                                  widget.locationData[
+                                                                      'destinationlat'],
+                                                                  widget.locationData[
+                                                                      'destinationlong'],
+                                                                )) *
+                                                                12) +
+                                                            20);
 
-                                                          final String docId = await addBooking(
-                                                              widget.driverId,
-                                                              widget.coordinates['pickupLocation'],
-                                                              widget.locationData['dropoff'],
-                                                              (calculateDistance(
-                                                                widget.coordinates[
-                                                                    'lat'],
-                                                                widget.coordinates[
-                                                                    'long'],
-                                                                widget.locationData[
-                                                                    'destinationlat'],
-                                                                widget.locationData[
-                                                                    'destinationlong'],
-                                                              )).toStringAsFixed(2),
-                                                              (calculateTravelTime(
+                                                    int passengers = 1;
+                                                    if (mounted) {
+                                                      showDialog(
+                                                        context: navigatorKey
+                                                                .currentContext ??
+                                                            context,
+                                                        builder: (context) {
+                                                          return AlertDialog(
+                                                            title: TextBold(
+                                                              text:
+                                                                  'Number of Passengers',
+                                                              fontSize: 18,
+                                                              color:
+                                                                  Colors.black,
+                                                            ),
+                                                            content: StatefulBuilder(
+                                                                builder: (context,
+                                                                    setState) {
+                                                              return Column(
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  Row(
+                                                                    mainAxisAlignment:
+                                                                        MainAxisAlignment
+                                                                            .spaceBetween,
+                                                                    children: [
+                                                                      IconButton(
+                                                                        onPressed:
+                                                                            () {
+                                                                          if (passengers >
+                                                                              1) {
+                                                                            setState(
+                                                                              () {
+                                                                                passengers--;
+                                                                              },
+                                                                            );
+                                                                          }
+                                                                        },
+                                                                        icon:
+                                                                            const Icon(
+                                                                          Icons
+                                                                              .remove,
+                                                                        ),
+                                                                      ),
+                                                                      TextBold(
+                                                                        text:
+                                                                            '$passengers',
+                                                                        fontSize:
+                                                                            18,
+                                                                        color: Colors
+                                                                            .black,
+                                                                      ),
+                                                                      IconButton(
+                                                                        onPressed:
+                                                                            () {
+                                                                          setState(
+                                                                            () {
+                                                                              passengers++;
+                                                                            },
+                                                                          );
+                                                                        },
+                                                                        icon:
+                                                                            const Icon(
+                                                                          Icons
+                                                                              .add,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ],
+                                                              );
+                                                            }),
+                                                            actions: [
+                                                              TextButton(
+                                                                onPressed:
+                                                                    () async {
+                                                                  await FirebaseFirestore
+                                                                      .instance
+                                                                      .collection(
+                                                                          'Drivers')
+                                                                      .doc(widget
+                                                                          .driverId)
+                                                                      .update({
+                                                                    'notif':
+                                                                        FieldValue
+                                                                            .arrayUnion([
+                                                                      {
+                                                                        'notif':
+                                                                            'You received a new booking!',
+                                                                        'read':
+                                                                            false,
+                                                                        'date':
+                                                                            DateTime.now(),
+                                                                      }
+                                                                    ]),
+                                                                  });
+
+                                                                  final String docId = await addBooking(
+                                                                      widget.driverId,
+                                                                      widget.coordinates['pickupLocation'],
+                                                                      widget.locationData['dropoff'],
                                                                       (calculateDistance(
                                                                         widget.coordinates[
                                                                             'lat'],
@@ -402,114 +824,120 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                             'destinationlat'],
                                                                         widget.locationData[
                                                                             'destinationlong'],
-                                                                      )),
-                                                                      26.8))
-                                                                  .toStringAsFixed(2),
-                                                              (((calculateDistance(
+                                                                      )).toStringAsFixed(2),
+                                                                      (calculateTravelTime(
+                                                                              (calculateDistance(
                                                                                 widget.coordinates['lat'],
                                                                                 widget.coordinates['long'],
                                                                                 widget.locationData['destinationlat'],
                                                                                 widget.locationData['destinationlong'],
-                                                                              )) *
-                                                                              passengers ==
-                                                                          1
-                                                                      ? 30
-                                                                      : passengers == 4
-                                                                          ? 25
-                                                                          : passengers == 3
-                                                                              ? 35
-                                                                              : 10))
-                                                                  .toStringAsFixed(2),
-                                                              widget.coordinates['lat'],
-                                                              widget.coordinates['long'],
-                                                              widget.locationData['destinationlat'],
-                                                              widget.locationData['destinationlong'],
-                                                              userName,
-                                                              userProfile);
-                                                          Navigator.pop(
-                                                              context);
-                                                          Navigator.pop(
-                                                              context);
+                                                                              )),
+                                                                              26.8))
+                                                                          .toStringAsFixed(2),
+                                                                      (((calculateDistance(
+                                                                                        widget.coordinates['lat'],
+                                                                                        widget.coordinates['long'],
+                                                                                        widget.locationData['destinationlat'],
+                                                                                        widget.locationData['destinationlong'],
+                                                                                      )) *
+                                                                                      passengers ==
+                                                                                  1
+                                                                              ? 30
+                                                                              : passengers == 4
+                                                                                  ? 25
+                                                                                  : passengers == 3
+                                                                                      ? 35
+                                                                                      : 10))
+                                                                          .toStringAsFixed(2),
+                                                                      widget.coordinates['lat'],
+                                                                      widget.coordinates['long'],
+                                                                      widget.locationData['destinationlat'],
+                                                                      widget.locationData['destinationlong'],
+                                                                      userName,
+                                                                      userProfile);
+                                                                  Navigator.pop(
+                                                                      context);
+                                                                  Navigator.pop(
+                                                                      context);
+                                                                  // Process payment
 
-                                                          showModalBottomSheet(
-                                                              isDismissible:
-                                                                  false,
-                                                              isScrollControlled:
-                                                                  true,
-                                                              context: context,
-                                                              builder:
-                                                                  ((context) {
-                                                                return TrackBookingBottomSheetWidget(
-                                                                  tripDetails: {
-                                                                    'userName':
-                                                                        userName,
-                                                                    'driverRatings': data['ratings'].length !=
-                                                                            0
-                                                                        ? 'Rating: ${rating.toStringAsFixed(2)} ★'
-                                                                        : 'No ratings',
-                                                                    'docId':
-                                                                        docId,
-                                                                    'driverProfile':
-                                                                        data[
-                                                                            'profilePicture'],
-                                                                    'driverName':
-                                                                        data[
-                                                                            'name'],
-                                                                    'driverId':
-                                                                        widget
-                                                                            .driverId,
-                                                                    'distance':
-                                                                        (calculateDistance(
-                                                                      widget.coordinates[
-                                                                          'lat'],
-                                                                      widget.coordinates[
-                                                                          'long'],
-                                                                      widget.locationData[
-                                                                          'destinationlat'],
-                                                                      widget.locationData[
-                                                                          'destinationlong'],
-                                                                    )).toStringAsFixed(
-                                                                            2),
-                                                                    'origin': widget
-                                                                            .coordinates[
-                                                                        'pickupLocation'],
-                                                                    'destination':
-                                                                        widget.locationData[
-                                                                            'dropoff'],
-                                                                    'fare': (((calculateDistance(
-                                                                                  widget.coordinates['lat'],
-                                                                                  widget.coordinates['long'],
-                                                                                  widget.locationData['destinationlat'],
-                                                                                  widget.locationData['destinationlong'],
-                                                                                )) *
-                                                                                12) +
-                                                                            20)
-                                                                        .toStringAsFixed(2)
-                                                                  },
-                                                                );
-                                                              }));
+                                                                  showModalBottomSheet(
+                                                                      isDismissible:
+                                                                          false,
+                                                                      isScrollControlled:
+                                                                          true,
+                                                                      context:
+                                                                          context,
+                                                                      builder:
+                                                                          ((context) {
+                                                                        return TrackBookingBottomSheetWidget(
+                                                                          tripDetails: {
+                                                                            'userName':
+                                                                                userName,
+                                                                            'driverRatings': data['ratings'].length != 0
+                                                                                ? 'Rating: ${rating.toStringAsFixed(2)} ★'
+                                                                                : 'No ratings',
+                                                                            'docId':
+                                                                                docId,
+                                                                            'driverProfile':
+                                                                                data['profilePicture'],
+                                                                            'driverName':
+                                                                                data['name'],
+                                                                            'driverId':
+                                                                                widget.driverId,
+                                                                            'distance':
+                                                                                (calculateDistance(
+                                                                              widget.coordinates['lat'],
+                                                                              widget.coordinates['long'],
+                                                                              widget.locationData['destinationlat'],
+                                                                              widget.locationData['destinationlong'],
+                                                                            )).toStringAsFixed(2),
+                                                                            'origin':
+                                                                                widget.coordinates['pickupLocation'],
+                                                                            'destination':
+                                                                                widget.locationData['dropoff'],
+                                                                            'fare': (((calculateDistance(
+                                                                                          widget.coordinates['lat'],
+                                                                                          widget.coordinates['long'],
+                                                                                          widget.locationData['destinationlat'],
+                                                                                          widget.locationData['destinationlong'],
+                                                                                        )) *
+                                                                                        12) +
+                                                                                    20)
+                                                                                .toStringAsFixed(2),
+                                                                            'paymentMethod':
+                                                                                paymentMethod,
+                                                                          },
+                                                                        );
+                                                                      }));
+                                                                  await processPayment(
+                                                                      fare);
+                                                                },
+                                                                child: TextBold(
+                                                                  text:
+                                                                      'Continue',
+                                                                  fontSize: 18,
+                                                                  color: Colors
+                                                                      .black,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          );
                                                         },
-                                                        child: TextBold(
-                                                          text: 'Continue',
-                                                          fontSize: 18,
-                                                          color: Colors.black,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              );
-                                            },
-                                            child: const Text(
-                                              'Continue',
-                                              style: TextStyle(
-                                                  fontFamily: 'QBold',
-                                                  fontWeight: FontWeight.w800),
-                                            ),
-                                          ),
-                                        ],
-                                      ));
-                            })),
+                                                      );
+                                                    }
+                                                  },
+                                                  child: const Text(
+                                                    'Continue',
+                                                    style: TextStyle(
+                                                        fontFamily: 'QBold',
+                                                        fontWeight:
+                                                            FontWeight.w800),
+                                                  ),
+                                                ),
+                                              ],
+                                            ));
+                                  })),
                       ),
                     ],
                   ),

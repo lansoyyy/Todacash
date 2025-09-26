@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inapp_notifications/flutter_inapp_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phara/screens/splash_screen.dart';
+import 'package:phara/widgets/book_bottomsheet_widget.dart';
 
 import 'firebase_options.dart';
 
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         appBarTheme: const AppBarTheme(
           color: Colors.white,

@@ -54,7 +54,7 @@ class _SplashToHomeScreenState extends State<SplashToHomeScreen> {
         decoration: const BoxDecoration(
             color: grey,
             image: DecorationImage(
-                opacity: 150,
+                opacity: 0.5,
                 image: AssetImage('assets/images/newimg.jfif'),
                 fit: BoxFit.cover)),
         child: Center(
