@@ -104,40 +104,28 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(
                     height: 5,
                   ),
-                  GestureDetector(
-                    onTap: () async {
-                      searchAddress();
-                    },
-                    child: Container(
-                      height: 65,
-                      width: double.infinity,
-                      decoration:
-                          BoxDecoration(borderRadius: BorderRadius.circular(5)),
-                      child: TextFormField(
-                        enabled: false,
-                        decoration: InputDecoration(
-                          fillColor: Colors.white,
-                          filled: true,
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(width: 1, color: grey),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          disabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(width: 1, color: grey),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(width: 1, color: Colors.black),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          label: TextRegular(
-                              text: addressController.text,
-                              fontSize: 14,
-                              color: Colors.black),
-                          border: InputBorder.none,
-                        ),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      fillColor: Colors.white,
+                      filled: true,
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(width: 1, color: grey),
+                        borderRadius: BorderRadius.circular(5),
                       ),
+                      disabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(width: 1, color: grey),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide:
+                            const BorderSide(width: 1, color: Colors.black),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      label: TextRegular(
+                          text: addressController.text,
+                          fontSize: 14,
+                          color: Colors.black),
+                      border: InputBorder.none,
                     ),
                   ),
                   const SizedBox(
