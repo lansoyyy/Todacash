@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:phara/screens/auth/login_screen.dart';
 import 'package:phara/screens/get_started_screen.dart';
 import 'package:phara/screens/splashtohome_screen.dart';
 
@@ -30,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
               if (snapshot.hasData) {
                 return const SplashToHomeScreen();
               } else {
-                return const GetStartedScreen();
+                return LoginScreen();
               }
             }),
       ));
