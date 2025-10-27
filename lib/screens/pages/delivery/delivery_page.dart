@@ -1035,7 +1035,7 @@ class DeliveryPageState extends State<DeliveryPage> {
     }
     setState(() {
       _poly = Polyline(
-          color: Colors.red,
+          color: Colors.blue,
           polylineId: const PolylineId('route'),
           points: polylineCoordinates,
           width: 4);

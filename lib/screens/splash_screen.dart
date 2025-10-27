@@ -29,7 +29,14 @@ class _SplashScreenState extends State<SplashScreen> {
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
-                return const SplashToHomeScreen();
+                // Check if user's email is verified
+                User? user = snapshot.data;
+                if (user != null && user.emailVerified) {
+                  return const SplashToHomeScreen();
+                } else {
+                  // User is logged in but email is not verified
+                  return LoginScreen();
+                }
               } else {
                 return LoginScreen();
               }

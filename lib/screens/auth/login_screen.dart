@@ -249,8 +249,17 @@ class LoginScreen extends StatelessWidget {
 
   login(context) async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text, password: passwordController.text);
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+              email: emailController.text, password: passwordController.text);
+
+      // Check if email is verified
+      if (!userCredential.user!.emailVerified) {
+        // Show email verification dialog
+        _showEmailVerificationDialog(context, userCredential.user!);
+        return;
+      }
+
       Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const SplashToHomeScreen()));
       box.write('shown', false);
@@ -269,6 +278,126 @@ class LoginScreen extends StatelessWidget {
       }
     } on Exception catch (e) {
       showToast("An error occurred: $e");
+    }
+  }
+
+  void _showEmailVerificationDialog(BuildContext context, User user) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(Icons.email_outlined, color: Colors.orange, size: 28),
+                const SizedBox(width: 10),
+                TextBold(
+                    text: 'Email Verification Required',
+                    fontSize: 18,
+                    color: black),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextRegular(
+                  text:
+                      'Your email address needs to be verified before you can login.',
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+                const SizedBox(height: 5),
+                TextBold(
+                  text: user.email!,
+                  fontSize: 16,
+                  color: black,
+                ),
+                const SizedBox(height: 15),
+                TextRegular(
+                  text:
+                      'Please check your inbox and click on the verification link we sent you.',
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+                const SizedBox(height: 15),
+                TextRegular(
+                  text: 'Didn\'t receive the email?',
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  try {
+                    await user.sendEmailVerification();
+                    showToast('Verification email resent!');
+                  } catch (e) {
+                    showToast('Failed to resend email: $e');
+                  }
+                },
+                child: TextBold(
+                  text: 'Resend Email',
+                  fontSize: 14,
+                  color: Colors.blue,
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _checkEmailVerification(user, context);
+                },
+                child: TextBold(
+                  text: 'I\'ve Verified',
+                  fontSize: 14,
+                  color: Colors.green,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  FirebaseAuth.instance.signOut();
+                },
+                child: TextBold(
+                  text: 'Back to Login',
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _checkEmailVerification(User user, BuildContext context) async {
+    try {
+      // Reload user to get updated verification status
+      await user.reload();
+      User? refreshedUser = FirebaseAuth.instance.currentUser;
+
+      if (refreshedUser != null && refreshedUser.emailVerified) {
+        showToast('Email verified successfully!');
+
+        // Navigate to home screen
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (context) => const SplashToHomeScreen()));
+
+        box.write('shown', false);
+        box.write('shownDeliver', false);
+      } else {
+        showToast(
+            'Email not verified yet. Please check your email and try again.');
+        _showEmailVerificationDialog(context, refreshedUser!);
+      }
+    } catch (e) {
+      showToast('Error checking verification status: $e');
     }
   }
 }

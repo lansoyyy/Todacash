@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:phara/screens/auth/login_screen.dart';
 import 'package:phara/screens/home_screen.dart';
 import 'package:phara/screens/permission_screen.dart';
 
@@ -25,6 +27,28 @@ class _SplashToHomeScreenState extends State<SplashToHomeScreen> {
     super.initState();
     determinePosition();
     Timer(const Duration(seconds: 5), () async {
+      // First check if user is still authenticated and email is verified
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => LoginScreen()));
+        return;
+      }
+
+      // Reload user to get latest verification status
+      await currentUser.reload();
+      User? refreshedUser = FirebaseAuth.instance.currentUser;
+
+      if (refreshedUser == null || !refreshedUser.emailVerified) {
+        Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => LoginScreen()));
+        Fluttertoast.showToast(
+          toastLength: Toast.LENGTH_LONG,
+          msg: 'Please verify your email before accessing the app.',
+        );
+        return;
+      }
+
       bool serviceEnabled;
 
       // Test if location services are enabled.

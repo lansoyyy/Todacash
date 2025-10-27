@@ -273,7 +273,7 @@ class _TrackingOfDriverPageState extends State<TrackingOfDriverPage> {
         }
         setState(() {
           _poly = Polyline(
-              color: Colors.red,
+              color: Colors.blue,
               polylineId: const PolylineId('route'),
               points: polylineCoordinates,
               width: 4);

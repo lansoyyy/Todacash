@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-Future signup(name, number, address, email) async {
+Future signup(name, number, address, email, [validIDUrl]) async {
   final docUser = FirebaseFirestore.instance
       .collection('Users')
       .doc(FirebaseAuth.instance.currentUser!.uid);
@@ -19,7 +19,9 @@ Future signup(name, number, address, email) async {
     'notif': [],
     'profilePicture': 'https://cdn-icons-png.flaticon.com/256/149/149071.png',
     'deliveryHistory': [],
-    'discount': 0
+    'discount': 0,
+    'validIDUrl': validIDUrl ?? '',
+    'isVerified': validIDUrl != null ? true : false
   };
 
   await docUser.set(json);
