@@ -320,6 +320,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                         color: Colors.green,
                                         label: 'Upload ID',
                                         onPressed: () {
+                                          print(
+                                              'DEBUG: Upload ID button pressed');
                                           _uploadValidID();
                                         },
                                       ),
@@ -360,7 +362,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       label: 'Signup',
                       onPressed: (() {
                         if (_formKey.currentState!.validate()) {
-                          if (_validIDUrl == null) {
+                          print('DEBUG: _validIDUrl value: $_validIDUrl');
+                          if (_validIDUrl == null || _validIDUrl!.isEmpty) {
                             showToast(
                                 'Please upload your valid ID to complete registration');
                           } else {
@@ -528,11 +531,11 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               TextButton(
                 onPressed: () async {
-                  Navigator.of(context).pop();
-                  await _checkEmailVerification(user, context);
+                  Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
                 },
                 child: TextBold(
-                  text: 'I\'ve Verified',
+                  text: 'Login',
                   fontSize: 14,
                   color: Colors.green,
                 ),
@@ -627,33 +630,48 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // Upload image to Firebase Storage
   Future<void> _uploadValidID() async {
+    print('DEBUG: _uploadValidID called');
     if (_validIDImage == null) {
+      print('DEBUG: No image selected');
       showToast('Please select an image first');
       return;
     }
 
+    print('DEBUG: Image selected, starting upload');
     setState(() {
       _isUploading = true;
     });
 
     try {
+      // Create a unique filename using timestamp and random number
+      final String fileName =
+          'valid_id_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}.jpg';
+      print('DEBUG: Generated filename: $fileName');
+
       // Create a reference to the Firebase Storage
-      final ref = FirebaseStorage.instance.ref().child('valid_ids').child(
-          '${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final ref =
+          FirebaseStorage.instance.ref().child('valid_ids').child(fileName);
+      print('DEBUG: Storage reference created: ${ref.fullPath}');
 
       // Upload the file
+      print('DEBUG: Starting file upload...');
       final uploadTask = await ref.putFile(_validIDImage!);
+      print('DEBUG: File upload completed. Task state: ${uploadTask.state}');
 
       // Get the download URL
+      print('DEBUG: Getting download URL...');
       final downloadUrl = await uploadTask.ref.getDownloadURL();
+      print('DEBUG: Download URL obtained: $downloadUrl');
 
       setState(() {
         _validIDUrl = downloadUrl;
         _isUploading = false;
       });
 
+      print('DEBUG: State updated. _validIDUrl is now: $_validIDUrl');
       showToast('Valid ID uploaded successfully');
     } catch (e) {
+      print('DEBUG: Upload failed with error: $e');
       setState(() {
         _isUploading = false;
       });
