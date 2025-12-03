@@ -40,6 +40,10 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
   final box = GetStorage();
   bool isProcessingPayment = false;
 
+  double _calculateFlatFare(int passengers) {
+    return passengers >= 4 ? 52.0 : 39.0;
+  }
+
   @override
   void initState() {
     getUserData();
@@ -230,9 +234,11 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                     ),
                     IconButton(
                       onPressed: () {
-                        setState(() {
-                          passengers++;
-                        });
+                        if (passengers < 4) {
+                          setState(() {
+                            passengers++;
+                          });
+                        }
                       },
                       icon: const Icon(Icons.add),
                     ),
@@ -274,6 +280,8 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
       ]),
     });
 
+    final double fareAmount = _calculateFlatFare(passengers);
+
     final String docId = await addBooking(
         widget.driverId,
         widget.coordinates['pickupLocation'],
@@ -293,21 +301,8 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                 )),
                 26.8))
             .toStringAsFixed(2),
-        (((calculateDistance(
-                          widget.coordinates['lat'],
-                          widget.coordinates['long'],
-                          widget.locationData['destinationlat'],
-                          widget.locationData['destinationlong'],
-                        )) *
-                        passengers ==
-                    1
-                ? 30
-                : passengers == 4
-                    ? 25
-                    : passengers == 3
-                        ? 35
-                        : 10))
-            .toStringAsFixed(2),
+        fareAmount.toStringAsFixed(2),
+        passengers,
         widget.coordinates['lat'],
         widget.coordinates['long'],
         widget.locationData['destinationlat'],
@@ -346,15 +341,7 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
               )).toStringAsFixed(2),
               'origin': widget.coordinates['pickupLocation'],
               'destination': widget.locationData['dropoff'],
-              'fare': (((calculateDistance(
-                            widget.coordinates['lat'],
-                            widget.coordinates['long'],
-                            widget.locationData['destinationlat'],
-                            widget.locationData['destinationlong'],
-                          )) *
-                          12) +
-                      20)
-                  .toStringAsFixed(2),
+              'fare': fareAmount.toStringAsFixed(2),
               'paymentMethod': paymentMethod,
             },
           );
@@ -697,21 +684,6 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                   onPressed: () async {
                                                     Navigator.pop(context);
 
-                                                    // Calculate fare
-                                                    double fare =
-                                                        (((calculateDistance(
-                                                                  widget.coordinates[
-                                                                      'lat'],
-                                                                  widget.coordinates[
-                                                                      'long'],
-                                                                  widget.locationData[
-                                                                      'destinationlat'],
-                                                                  widget.locationData[
-                                                                      'destinationlong'],
-                                                                )) *
-                                                                12) +
-                                                            20);
-
                                                     int passengers = 1;
                                                     if (mounted) {
                                                       showDialog(
@@ -769,11 +741,14 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                       IconButton(
                                                                         onPressed:
                                                                             () {
-                                                                          setState(
-                                                                            () {
-                                                                              passengers++;
-                                                                            },
-                                                                          );
+                                                                          if (passengers <
+                                                                              4) {
+                                                                            setState(
+                                                                              () {
+                                                                                passengers++;
+                                                                              },
+                                                                            );
+                                                                          }
                                                                         },
                                                                         icon:
                                                                             const Icon(
@@ -790,6 +765,11 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                               TextButton(
                                                                 onPressed:
                                                                     () async {
+                                                                  final double
+                                                                      fareAmount =
+                                                                      _calculateFlatFare(
+                                                                          passengers);
+
                                                                   if (paymentMethod ==
                                                                       'cash') {
                                                                     await FirebaseFirestore
@@ -836,21 +816,8 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                                 )),
                                                                                 26.8))
                                                                             .toStringAsFixed(2),
-                                                                        (((calculateDistance(
-                                                                                          widget.coordinates['lat'],
-                                                                                          widget.coordinates['long'],
-                                                                                          widget.locationData['destinationlat'],
-                                                                                          widget.locationData['destinationlong'],
-                                                                                        )) *
-                                                                                        passengers ==
-                                                                                    1
-                                                                                ? 30
-                                                                                : passengers == 4
-                                                                                    ? 25
-                                                                                    : passengers == 3
-                                                                                        ? 35
-                                                                                        : 10))
-                                                                            .toStringAsFixed(2),
+                                                                        fareAmount.toStringAsFixed(2),
+                                                                        passengers,
                                                                         widget.coordinates['lat'],
                                                                         widget.coordinates['long'],
                                                                         widget.locationData['destinationlat'],
@@ -887,15 +854,7 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                               )).toStringAsFixed(2),
                                                                               'origin': widget.coordinates['pickupLocation'],
                                                                               'destination': widget.locationData['dropoff'],
-                                                                              'fare': (((calculateDistance(
-                                                                                            widget.coordinates['lat'],
-                                                                                            widget.coordinates['long'],
-                                                                                            widget.locationData['destinationlat'],
-                                                                                            widget.locationData['destinationlong'],
-                                                                                          )) *
-                                                                                          12) +
-                                                                                      20)
-                                                                                  .toStringAsFixed(2)
+                                                                              'fare': fareAmount.toStringAsFixed(2)
                                                                             },
                                                                           );
                                                                         }));
@@ -944,21 +903,8 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                                 )),
                                                                                 26.8))
                                                                             .toStringAsFixed(2),
-                                                                        (((calculateDistance(
-                                                                                          widget.coordinates['lat'],
-                                                                                          widget.coordinates['long'],
-                                                                                          widget.locationData['destinationlat'],
-                                                                                          widget.locationData['destinationlong'],
-                                                                                        )) *
-                                                                                        passengers ==
-                                                                                    1
-                                                                                ? 30
-                                                                                : passengers == 4
-                                                                                    ? 25
-                                                                                    : passengers == 3
-                                                                                        ? 35
-                                                                                        : 10))
-                                                                            .toStringAsFixed(2),
+                                                                        fareAmount.toStringAsFixed(2),
+                                                                        passengers,
                                                                         widget.coordinates['lat'],
                                                                         widget.coordinates['long'],
                                                                         widget.locationData['destinationlat'],
@@ -996,21 +942,13 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                                               )).toStringAsFixed(2),
                                                                               'origin': widget.coordinates['pickupLocation'],
                                                                               'destination': widget.locationData['dropoff'],
-                                                                              'fare': (((calculateDistance(
-                                                                                            widget.coordinates['lat'],
-                                                                                            widget.coordinates['long'],
-                                                                                            widget.locationData['destinationlat'],
-                                                                                            widget.locationData['destinationlong'],
-                                                                                          )) *
-                                                                                          12) +
-                                                                                      20)
-                                                                                  .toStringAsFixed(2),
+                                                                              'fare': fareAmount.toStringAsFixed(2),
                                                                               'paymentMethod': paymentMethod,
                                                                             },
                                                                           );
                                                                         }));
                                                                     await processPayment(
-                                                                        fare);
+                                                                        fareAmount);
                                                                   }
                                                                 },
                                                                 child: TextBold(

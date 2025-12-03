@@ -8,6 +8,7 @@ Future<String> addBooking(
     distance,
     time,
     fare,
+    passengers,
     originLat,
     originLong,
     destinationLat,
@@ -26,6 +27,7 @@ Future<String> addBooking(
     'distance': distance,
     'time': time,
     'fare': fare,
+    'passengers': passengers,
     'originCoordinates': {'lat': originLat, 'long': originLong},
     'destinationCoordinates': {'lat': destinationLat, 'long': destinationLong},
     'userName': userName,
@@ -57,6 +59,7 @@ Future<String> addBooking(
         'destination': destination,
         'distance': distance,
         'fare': fare,
+        'passengers': passengers,
         'date': DateTime.now(),
         'rate': 0,
       }
