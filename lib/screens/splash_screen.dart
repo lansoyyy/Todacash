@@ -24,24 +24,16 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
 
     Timer(const Duration(seconds: 5), () async {
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (context) => StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                // Check if user's email is verified
-                User? user = snapshot.data;
-                if (user != null && user.emailVerified) {
-                  return const SplashToHomeScreen();
-                } else {
-                  // User is logged in but email is not verified
-                  return LoginScreen();
-                }
-              } else {
-                return LoginScreen();
-              }
-            }),
-      ));
+      final user = FirebaseAuth.instance.currentUser;
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => (user != null && user.emailVerified)
+              ? const SplashToHomeScreen()
+              : LoginScreen(),
+        ),
+      );
     });
   }
 
