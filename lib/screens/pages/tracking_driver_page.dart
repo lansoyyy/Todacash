@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as loc;
 import 'package:phara/screens/pages/chat_page.dart';
+import 'package:phara/screens/pages/trip_summary_page.dart';
 import 'package:phara/services/add_history.dart';
 import 'package:phara/utils/const.dart';
 import 'package:phara/widgets/text_widget.dart';
@@ -383,7 +384,13 @@ class _TrackingOfDriverPageState extends State<TrackingOfDriverPage> {
 
                   showToast('Thankyou for your booking!');
                   Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => MapScreen()));
+                    MaterialPageRoute(
+                      builder: (context) => TripSummaryPage(
+                        tripDetails: widget.tripDetails,
+                        date: DateTime.now(),
+                      ),
+                    ),
+                  );
                 },
                 child: TextBold(
                     text: 'Continue', fontSize: 18, color: Colors.amber),

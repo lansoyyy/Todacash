@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:badges/badges.dart' as b;
@@ -29,7 +30,6 @@ import '../utils/keys.dart';
 import '../widgets/book_bottomsheet_widget.dart';
 import '../widgets/button_widget.dart';
 import '../widgets/drawer_widget.dart';
-import '../widgets/toast_widget.dart';
 import 'pages/messages_tab.dart';
 
 class MapScreen extends StatefulWidget {
@@ -53,7 +53,7 @@ class _MapScreenState extends State<MapScreen> {
     determinePosition();
     getLocation();
 
-    Timer.periodic(const Duration(minutes: 5), (timer) {
+    locationTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
       Geolocator.getCurrentPosition().then((position) {
         FirebaseFirestore.instance
             .collection('Users')
@@ -181,6 +181,7 @@ class _MapScreenState extends State<MapScreen> {
   var hasLoaded = false;
 
   GoogleMapController? mapController;
+  Timer? locationTimer;
 
   Set<Marker> markers = {};
 
@@ -522,7 +523,8 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    mapController!.dispose();
+    mapController?.dispose();
+    locationTimer?.cancel();
   }
 
   // Future<void> _createTutorial() async {
@@ -650,13 +652,17 @@ class _MapScreenState extends State<MapScreen> {
         apiKey: kGoogleApiKey,
         apiHeaders: await const GoogleApiHeaders().getHeaders());
 
-    location.PlacesDetailsResponse detail =
-        await places.getDetailsByPlaceId(p!.placeId!);
+    location.PlacesDetailsResponse detail;
+    if (p != null && p.placeId != null) {
+      detail = await places.getDetailsByPlaceId(p.placeId!);
+    } else {
+      return;
+    }
 
     addMyMarker1(detail.result.geometry!.location.lat,
         detail.result.geometry!.location.lng);
 
-    mapController!.animateCamera(CameraUpdate.newLatLngZoom(
+    mapController?.animateCamera(CameraUpdate.newLatLngZoom(
         LatLng(detail.result.geometry!.location.lat,
             detail.result.geometry!.location.lng),
         18.0));
@@ -695,8 +701,12 @@ class _MapScreenState extends State<MapScreen> {
         apiKey: kGoogleApiKey,
         apiHeaders: await const GoogleApiHeaders().getHeaders());
 
-    location.PlacesDetailsResponse detail =
-        await places.getDetailsByPlaceId(p!.placeId!);
+    location.PlacesDetailsResponse detail;
+    if (p != null && p.placeId != null) {
+      detail = await places.getDetailsByPlaceId(p.placeId!);
+    } else {
+      return;
+    }
 
     addMyMarker12(detail.result.geometry!.location.lat,
         detail.result.geometry!.location.lng);
@@ -726,7 +736,7 @@ class _MapScreenState extends State<MapScreen> {
           width: 4);
     });
 
-    mapController!.animateCamera(CameraUpdate.newLatLngZoom(
+    mapController?.animateCamera(CameraUpdate.newLatLngZoom(
         LatLng(detail.result.geometry!.location.lat,
             detail.result.geometry!.location.lng),
         18.0));
@@ -744,7 +754,7 @@ class _MapScreenState extends State<MapScreen> {
 
     // Accommodate the two locations within the
     // camera view of the map
-    mapController!.animateCamera(
+    mapController?.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           northeast: LatLng(
@@ -903,29 +913,97 @@ class _MapScreenState extends State<MapScreen> {
                     alignment: Alignment.topRight,
                     child: TextButton.icon(
                       onPressed: () {
-                        Navigator.pop(context);
-                        showModalBottomSheet(
-                            isScrollControlled: true,
-                            context: context,
-                            builder: ((context) {
-                              return BookBottomSheetWidget(
-                                locationData: {
-                                  'pickuplat': lat,
-                                  'pickuplong': long,
-                                  'pickup': pickup,
-                                  'destinationlat': dropOff.latitude,
-                                  'destinationlong': dropOff.longitude,
-                                  'dropoff': drop
-                                },
-                                driverId: nearestDriverId,
-                                coordinates: {
-                                  'lat': lat,
-                                  'long': long,
-                                  'pickupLocation':
-                                      '${place.street}, ${place.locality}, ${place.administrativeArea}'
-                                },
-                              );
-                            }));
+                        final bottomSheetContext = context;
+                        int passengers = 1;
+
+                        showDialog(
+                          context: context,
+                          builder: (dialogContext) {
+                            return AlertDialog(
+                              title: const Text(
+                                'Number of Passengers',
+                                style: TextStyle(
+                                    fontFamily: 'QBold',
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              content:
+                                  StatefulBuilder(builder: (context, setState) {
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () {
+                                        if (passengers > 1) {
+                                          setState(() {
+                                            passengers--;
+                                          });
+                                        }
+                                      },
+                                      icon: const Icon(Icons.remove),
+                                    ),
+                                    Text(
+                                      '$passengers',
+                                      style: const TextStyle(
+                                          fontFamily: 'QBold', fontSize: 18),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        if (passengers < 4) {
+                                          setState(() {
+                                            passengers++;
+                                          });
+                                        }
+                                      },
+                                      icon: const Icon(Icons.add),
+                                    ),
+                                  ],
+                                );
+                              }),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                  },
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                    Navigator.pop(bottomSheetContext);
+
+                                    showModalBottomSheet(
+                                        isScrollControlled: true,
+                                        context: bottomSheetContext,
+                                        builder: ((context) {
+                                          return BookBottomSheetWidget(
+                                            locationData: {
+                                              'pickuplat': lat,
+                                              'pickuplong': long,
+                                              'pickup': pickup,
+                                              'destinationlat':
+                                                  dropOff.latitude,
+                                              'destinationlong':
+                                                  dropOff.longitude,
+                                              'dropoff': drop
+                                            },
+                                            driverId: nearestDriverId,
+                                            coordinates: {
+                                              'lat': lat,
+                                              'long': long,
+                                              'pickupLocation':
+                                                  '${place.street}, ${place.locality}, ${place.administrativeArea}'
+                                            },
+                                            passengers: passengers,
+                                          );
+                                        }));
+                                  },
+                                  child: const Text('Continue'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
                       },
                       icon: const Icon(
                         Icons.my_location,
@@ -1089,37 +1167,133 @@ class _MapScreenState extends State<MapScreen> {
                                             height: 30,
                                             fontSize: 11,
                                             label: 'Select Driver',
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                              showModalBottomSheet(
-                                                  isScrollControlled: true,
-                                                  context: context,
-                                                  builder: ((context) {
-                                                    return BookBottomSheetWidget(
-                                                      locationData: {
-                                                        'pickuplat': lat,
-                                                        'pickuplong': long,
-                                                        'pickup': pickup,
-                                                        'destinationlat':
-                                                            dropOff.latitude,
-                                                        'destinationlong':
-                                                            dropOff.longitude,
-                                                        'dropoff': drop
-                                                      },
-                                                      driverId:
-                                                          data.docs[index].id,
-                                                      coordinates: {
-                                                        'lat': lat,
-                                                        'long': long,
-                                                        'pickupLocation':
-                                                            '${place.street}, ${place.locality}, ${place.administrativeArea}'
-                                                      },
-                                                    );
-                                                  }));
-                                            },
                                             opacity: 1,
                                             radius: 100,
                                             color: Colors.green,
+                                            onPressed: () {
+                                              final bottomSheetContext =
+                                                  context;
+                                              int passengers = 1;
+
+                                              showDialog(
+                                                context: context,
+                                                builder: (dialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      'Number of Passengers',
+                                                      style: TextStyle(
+                                                          fontFamily: 'QBold',
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                    content: StatefulBuilder(
+                                                        builder: (context,
+                                                            setState) {
+                                                      return Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceBetween,
+                                                        children: [
+                                                          IconButton(
+                                                            onPressed: () {
+                                                              if (passengers >
+                                                                  1) {
+                                                                setState(() {
+                                                                  passengers--;
+                                                                });
+                                                              }
+                                                            },
+                                                            icon: const Icon(
+                                                                Icons.remove),
+                                                          ),
+                                                          Text(
+                                                            '$passengers',
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontFamily:
+                                                                        'QBold',
+                                                                    fontSize:
+                                                                        18),
+                                                          ),
+                                                          IconButton(
+                                                            onPressed: () {
+                                                              if (passengers <
+                                                                  4) {
+                                                                setState(() {
+                                                                  passengers++;
+                                                                });
+                                                              }
+                                                            },
+                                                            icon: const Icon(
+                                                                Icons.add),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    }),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              dialogContext);
+                                                        },
+                                                        child: const Text(
+                                                            'Cancel'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              dialogContext);
+                                                          Navigator.pop(
+                                                              bottomSheetContext);
+
+                                                          showModalBottomSheet(
+                                                              isScrollControlled:
+                                                                  true,
+                                                              context:
+                                                                  bottomSheetContext,
+                                                              builder:
+                                                                  ((context) {
+                                                                return BookBottomSheetWidget(
+                                                                  locationData: {
+                                                                    'pickuplat':
+                                                                        lat,
+                                                                    'pickuplong':
+                                                                        long,
+                                                                    'pickup':
+                                                                        pickup,
+                                                                    'destinationlat':
+                                                                        dropOff
+                                                                            .latitude,
+                                                                    'destinationlong':
+                                                                        dropOff
+                                                                            .longitude,
+                                                                    'dropoff':
+                                                                        drop
+                                                                  },
+                                                                  driverId: data
+                                                                      .docs[
+                                                                          index]
+                                                                      .id,
+                                                                  coordinates: {
+                                                                    'lat': lat,
+                                                                    'long':
+                                                                        long,
+                                                                    'pickupLocation':
+                                                                        '${place.street}, ${place.locality}, ${place.administrativeArea}'
+                                                                  },
+                                                                  passengers:
+                                                                      passengers,
+                                                                );
+                                                              }));
+                                                        },
+                                                        child: const Text(
+                                                            'Continue'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),

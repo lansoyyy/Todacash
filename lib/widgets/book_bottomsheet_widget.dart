@@ -23,11 +23,14 @@ class BookBottomSheetWidget extends StatefulWidget {
 
   final locationData;
 
+  final int passengers;
+
   const BookBottomSheetWidget(
       {super.key,
       required this.driverId,
       required this.coordinates,
-      required this.locationData});
+      required this.locationData,
+      required this.passengers});
 
   @override
   State<BookBottomSheetWidget> createState() => _BookBottomSheetWidgetState();
@@ -528,8 +531,7 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                         height: 5,
                       ),
                       TextRegular(
-                          text:
-                              'Estimated time: ${(calculateTravelTime((calculateDistance(widget.coordinates['lat'], widget.coordinates['long'], widget.locationData['destinationlat'], widget.locationData['destinationlong'])), 26.8)).toStringAsFixed(2)} hr/s',
+                          text: 'Passengers: ${widget.passengers}',
                           fontSize: 18,
                           color: grey),
                       const SizedBox(
@@ -537,7 +539,7 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                       ),
                       TextRegular(
                           text:
-                              'Fare: ₱${(((calculateDistance(widget.coordinates['lat'], widget.coordinates['long'], widget.locationData['destinationlat'], widget.locationData['destinationlong'])) * 10) + 20).toStringAsFixed(2)}',
+                              'Fare: ₱${_calculateFlatFare(widget.passengers).toStringAsFixed(2)}',
                           fontSize: 18,
                           color: grey),
                       const SizedBox(

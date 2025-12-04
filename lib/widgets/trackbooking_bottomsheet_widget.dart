@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:phara/screens/map_screen.dart';
 import 'package:phara/screens/pages/tracking_driver_page.dart';
+import 'package:phara/screens/pages/trip_summary_page.dart';
 import 'package:phara/widgets/text_widget.dart';
 import 'package:phara/widgets/textfield_widget.dart';
 import 'package:phara/widgets/toast_widget.dart';
@@ -439,7 +440,13 @@ class _TrackBookingBottomSheetWidgetState
 
                   showToast('Thankyou for your booking!');
                   Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => MapScreen()));
+                    MaterialPageRoute(
+                      builder: (context) => TripSummaryPage(
+                        tripDetails: widget.tripDetails,
+                        date: DateTime.now(),
+                      ),
+                    ),
+                  );
                 },
                 child: TextBold(
                     text: 'Continue', fontSize: 18, color: Colors.amber),
