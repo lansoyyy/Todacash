@@ -1,12 +1,12 @@
 buildscript {
-    ext.kotlin_version = '1.9.20'
+    ext.kotlin_version = '1.9.22'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.4.0'
+        classpath 'com.android.tools.build:gradle:8.3.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'com.google.gms:google-services:4.3.15'
     }
@@ -25,6 +25,20 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(':app')
+}
+
+// Workaround for third-party Android library modules that don't declare
+// an android { namespace } (e.g. :google_api_headers) when using AGP 8+.
+subprojects { subproject ->
+    if (subproject.name == 'google_api_headers') {
+        subproject.plugins.withId('com.android.library') {
+            if (subproject.extensions.findByName('android') != null) {
+                subproject.android {
+                    namespace 'io.github.zeshuaro.google_api_headers'
+                }
+            }
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

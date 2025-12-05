@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+2
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.6.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -57,7 +57,6 @@ dependencies:
   location: ^8.0.1
   url_launcher:
   cached_network_image:
-  custom_map_markers:
   flutter_spinkit:
   animated_text_kit:
   showcaseview:
@@ -66,8 +65,6 @@ dependencies:
   flutter_inapp_notifications:
   flutter_speed_dial:
   flutter_carousel_slider:
-  google_maps_flutter_web: ^0.4.0
-  google_maps_utils: ^1.5.0+0
   paymongo_sdk: ^1.7.0
   
 
