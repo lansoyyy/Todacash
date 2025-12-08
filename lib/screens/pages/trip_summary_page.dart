@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:phara/screens/home_screen.dart';
 import 'package:phara/screens/map_screen.dart';
 import 'package:phara/utils/colors.dart';
 import 'package:phara/widgets/text_widget.dart';
@@ -15,7 +16,7 @@ class TripSummaryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateText = DateFormat('dd MMM yyyy, hh:mm a').format(date);
     final String bookingId = tripDetails['docId'] ?? '';
-    final String vehicleType = 'Motorcycle';
+    final String vehicleType = 'Tricycle';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -86,7 +87,7 @@ class TripSummaryPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.motorcycle, color: Colors.red),
+                        const Icon(Icons.bike_scooter, color: Colors.red),
                         const SizedBox(width: 6),
                         TextBold(
                           text: vehicleType,
@@ -190,7 +191,7 @@ class TripSummaryPage extends StatelessWidget {
                 ),
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => MapScreen()),
+                    MaterialPageRoute(builder: (context) => HomeScreen()),
                     (route) => false,
                   );
                 },

@@ -500,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.black,
                 ),
                 Icon(
-                  Icons.motorcycle,
+                  Icons.bike_scooter,
                   color: grey,
                 ),
               ],
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           children: [
                             Icon(
-                              Icons.motorcycle_outlined,
+                              Icons.bike_scooter_outlined,
                               size: 50,
                               color: grey.withOpacity(0.7),
                             ),
