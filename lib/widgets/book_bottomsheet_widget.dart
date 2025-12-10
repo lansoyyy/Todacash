@@ -198,12 +198,10 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
   }
 
   void proceedWithBooking() async {
-    // This method will be called after payment is successful or for cash payments
-    Navigator.pop(context); // Close payment method dialog
+    // This method will be called after payment is successful (GCash)
+    // and is responsible for creating the booking and showing the
+    // tracking bottom sheet (Booking Status: Pending).
     await createBooking(widget.passengers);
-    if (mounted) {
-      Navigator.pop(context);
-    }
   }
 
   Future<void> createBooking(int passengers) async {
@@ -621,243 +619,25 @@ class _BookBottomSheetWidgetState extends State<BookBottomSheetWidget> {
                                                 ),
                                                 MaterialButton(
                                                   onPressed: () async {
+                                                    // Close the confirmation dialog
                                                     Navigator.pop(context);
 
                                                     final double fareAmount =
                                                         _calculateFlatFare(
                                                             widget.passengers);
 
+                                                    // For CASH, directly create the booking
+                                                    // which also shows the Booking Status
+                                                    // bottom sheet (Pending).
                                                     if (paymentMethod ==
                                                         'cash') {
-                                                      await FirebaseFirestore
-                                                          .instance
-                                                          .collection('Drivers')
-                                                          .doc(widget.driverId)
-                                                          .update({
-                                                        'notif': FieldValue
-                                                            .arrayUnion([
-                                                          {
-                                                            'notif':
-                                                                'You received a new booking!',
-                                                            'read': false,
-                                                            'date':
-                                                                DateTime.now(),
-                                                          }
-                                                        ]),
-                                                      });
-
-                                                      final String docId =
-                                                          await addBooking(
-                                                              widget.driverId,
-                                                              widget.coordinates[
-                                                                  'pickupLocation'],
-                                                              widget.locationData[
-                                                                  'dropoff'],
-                                                              (calculateDistance(
-                                                                widget.coordinates[
-                                                                    'lat'],
-                                                                widget.coordinates[
-                                                                    'long'],
-                                                                widget.locationData[
-                                                                    'destinationlat'],
-                                                                widget.locationData[
-                                                                    'destinationlong'],
-                                                              )).toStringAsFixed(
-                                                                  2),
-                                                              (calculateTravelTime(
-                                                                      (calculateDistance(
-                                                                        widget.coordinates[
-                                                                            'lat'],
-                                                                        widget.coordinates[
-                                                                            'long'],
-                                                                        widget.locationData[
-                                                                            'destinationlat'],
-                                                                        widget.locationData[
-                                                                            'destinationlong'],
-                                                                      )),
-                                                                      26.8))
-                                                                  .toStringAsFixed(
-                                                                      2),
-                                                              fareAmount
-                                                                  .toStringAsFixed(
-                                                                      2),
-                                                              widget.passengers,
-                                                              widget.coordinates[
-                                                                  'lat'],
-                                                              widget.coordinates[
-                                                                  'long'],
-                                                              widget.locationData[
-                                                                  'destinationlat'],
-                                                              widget.locationData[
-                                                                  'destinationlong'],
-                                                              userName,
-                                                              userProfile);
-                                                      Navigator.pop(context);
-
-                                                      showModalBottomSheet(
-                                                          isDismissible: false,
-                                                          isScrollControlled:
-                                                              true,
-                                                          context: context,
-                                                          builder: ((context) {
-                                                            return TrackBookingBottomSheetWidget(
-                                                              tripDetails: {
-                                                                'userName':
-                                                                    userName,
-                                                                'driverRatings':
-                                                                    data['ratings'].length !=
-                                                                            0
-                                                                        ? 'Rating: ${rating.toStringAsFixed(2)} ★'
-                                                                        : 'No ratings',
-                                                                'docId': docId,
-                                                                'driverProfile':
-                                                                    data[
-                                                                        'profilePicture'],
-                                                                'driverName':
-                                                                    data[
-                                                                        'name'],
-                                                                'driverId': widget
-                                                                    .driverId,
-                                                                'distance':
-                                                                    (calculateDistance(
-                                                                  widget.coordinates[
-                                                                      'lat'],
-                                                                  widget.coordinates[
-                                                                      'long'],
-                                                                  widget.locationData[
-                                                                      'destinationlat'],
-                                                                  widget.locationData[
-                                                                      'destinationlong'],
-                                                                )).toStringAsFixed(
-                                                                        2),
-                                                                'origin': widget
-                                                                        .coordinates[
-                                                                    'pickupLocation'],
-                                                                'destination':
-                                                                    widget.locationData[
-                                                                        'dropoff'],
-                                                                'fare': fareAmount
-                                                                    .toStringAsFixed(
-                                                                        2)
-                                                              },
-                                                            );
-                                                          }));
+                                                      await createBooking(
+                                                          widget.passengers);
                                                     } else {
-                                                      await FirebaseFirestore
-                                                          .instance
-                                                          .collection('Drivers')
-                                                          .doc(widget.driverId)
-                                                          .update({
-                                                        'notif': FieldValue
-                                                            .arrayUnion([
-                                                          {
-                                                            'notif':
-                                                                'You received a new booking!',
-                                                            'read': false,
-                                                            'date':
-                                                                DateTime.now(),
-                                                          }
-                                                        ]),
-                                                      });
-
-                                                      final String docId =
-                                                          await addBooking(
-                                                              widget.driverId,
-                                                              widget.coordinates[
-                                                                  'pickupLocation'],
-                                                              widget.locationData[
-                                                                  'dropoff'],
-                                                              (calculateDistance(
-                                                                widget.coordinates[
-                                                                    'lat'],
-                                                                widget.coordinates[
-                                                                    'long'],
-                                                                widget.locationData[
-                                                                    'destinationlat'],
-                                                                widget.locationData[
-                                                                    'destinationlong'],
-                                                              )).toStringAsFixed(
-                                                                  2),
-                                                              (calculateTravelTime(
-                                                                      (calculateDistance(
-                                                                        widget.coordinates[
-                                                                            'lat'],
-                                                                        widget.coordinates[
-                                                                            'long'],
-                                                                        widget.locationData[
-                                                                            'destinationlat'],
-                                                                        widget.locationData[
-                                                                            'destinationlong'],
-                                                                      )),
-                                                                      26.8))
-                                                                  .toStringAsFixed(
-                                                                      2),
-                                                              fareAmount
-                                                                  .toStringAsFixed(
-                                                                      2),
-                                                              widget.passengers,
-                                                              widget.coordinates[
-                                                                  'lat'],
-                                                              widget.coordinates[
-                                                                  'long'],
-                                                              widget.locationData[
-                                                                  'destinationlat'],
-                                                              widget.locationData[
-                                                                  'destinationlong'],
-                                                              userName,
-                                                              userProfile);
-                                                      Navigator.pop(context);
-
-                                                      showModalBottomSheet(
-                                                          isDismissible: false,
-                                                          isScrollControlled:
-                                                              true,
-                                                          context: context,
-                                                          builder: ((context) {
-                                                            return TrackBookingBottomSheetWidget(
-                                                              tripDetails: {
-                                                                'userName':
-                                                                    userName,
-                                                                'driverRatings':
-                                                                    data['ratings'].length !=
-                                                                            0
-                                                                        ? 'Rating: ${rating.toStringAsFixed(2)} ★'
-                                                                        : 'No ratings',
-                                                                'docId': docId,
-                                                                'driverProfile':
-                                                                    data[
-                                                                        'profilePicture'],
-                                                                'driverName':
-                                                                    data[
-                                                                        'name'],
-                                                                'driverId': widget
-                                                                    .driverId,
-                                                                'distance':
-                                                                    (calculateDistance(
-                                                                  widget.coordinates[
-                                                                      'lat'],
-                                                                  widget.coordinates[
-                                                                      'long'],
-                                                                  widget.locationData[
-                                                                      'destinationlat'],
-                                                                  widget.locationData[
-                                                                      'destinationlong'],
-                                                                )).toStringAsFixed(
-                                                                        2),
-                                                                'origin': widget
-                                                                        .coordinates[
-                                                                    'pickupLocation'],
-                                                                'destination':
-                                                                    widget.locationData[
-                                                                        'dropoff'],
-                                                                'fare': fareAmount
-                                                                    .toStringAsFixed(
-                                                                        2),
-                                                                'paymentMethod':
-                                                                    paymentMethod,
-                                                              },
-                                                            );
-                                                          }));
+                                                      // For GCash, handle payment first;
+                                                      // on success, processPayment will
+                                                      // call proceedWithBooking() which
+                                                      // in turn calls createBooking().
                                                       await processPayment(
                                                           fareAmount);
                                                     }
